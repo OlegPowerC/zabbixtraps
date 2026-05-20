@@ -124,3 +124,7 @@ snmptrap -v 3 -u snmpuser256256 -a sha-256 -A auth25612345 -l authPriv -x aes-25
 
 ### Скоро добавлю пример конфигурации Zabbix
 
+Пока пример трапа и конфигурации Item:  
+
+![TrapItem.jpg](.github/images/TrapItem.jpg)
+![zabbixtraps1.jpg](.github/images/zabbixtraps1.jpg)
