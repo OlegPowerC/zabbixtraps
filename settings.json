@@ -1,0 +1,28 @@
+{
+  "logfile": "/var/log/snmptrap/snmptrap.log",
+  "timezone": "Europe/Moscow",
+  "debugmode": true,
+  "users": [
+    {
+      "username": "testuser1",
+      "authproto": "sha",
+      "privproto": "aes",
+      "auth": "auth12345",
+      "priv": "priv12345"
+    },
+    {
+      "username": "snmpuser192",
+      "authproto": "sha",
+      "privproto": "aes192a",
+      "auth": "auth12345",
+      "priv": "priv19212345"
+    },
+    {
+      "username": "snmpuser256256",
+      "authproto": "sha256",
+      "privproto": "aes256a",
+      "auth": "auth25612345",
+      "priv": "priv25612345"
+    }
+  ]
+}
