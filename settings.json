@@ -11,6 +11,14 @@
       "priv": "priv12345"
     },
     {
+      "username": "testuser1",
+      "authproto": "md5",
+      "privproto": "aes256a",
+      "auth": "authmd512345",
+      "priv": "privdes12345",
+      "ipaddr": "192.168.0.106"
+    },
+    {
       "username": "snmpuser192",
       "authproto": "sha",
       "privproto": "aes192a",

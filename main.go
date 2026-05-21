@@ -33,6 +33,7 @@ type UserData struct {
 	Privproto string `json:"privproto"`
 	Auth      string `json:"auth"`
 	Priv      string `json:"priv"`
+	IPaddr    string `json:"ipaddr"`
 }
 type Settings struct {
 	Logfile   string     `json:"logfile"`
@@ -41,13 +42,17 @@ type Settings struct {
 	Users     []UserData `json:"users"`
 }
 
+type UserKey struct {
+	DeviceIP string
+	Usename  string
+}
 type LogMsg struct {
 	datavalid bool
 	logrow    string
 }
 
 type GlobalDataType struct {
-	Userv3Map     map[string]*PowerSNMP.SNMPTrapParameters
+	Userv3Map     map[UserKey]*PowerSNMP.SNMPTrapParameters
 	GlobalChannel chan LogMsg
 	Debugmode     bool
 }
@@ -95,7 +100,7 @@ func LogWriter(ctx context.Context, logfile string, GlobalChannel chan LogMsg, w
 	}
 }
 
-func PrTrap(addr string, port int, data []byte, Userv3Map map[string]*PowerSNMP.SNMPTrapParameters, GlobalChannel chan LogMsg, DebugMode bool) {
+func PrTrap(addr string, port int, data []byte, Userv3Map map[UserKey]*PowerSNMP.SNMPTrapParameters, GlobalChannel chan LogMsg, DebugMode bool) {
 	//Приняли трап или информ, извлекаем из него незашифрованные данные
 	SNMPver, SNMPv3User, v3SecData, v3globaldata, PuErr := PowerSNMP.ParseTrapUsername(data)
 	if PuErr != nil {
@@ -104,13 +109,20 @@ func PrTrap(addr string, port int, data []byte, Userv3Map map[string]*PowerSNMP.
 	var credentials PowerSNMP.SNMPTrapParameters
 
 	if SNMPver == 3 {
-		// SNMPv3: ищем пользователя и параметры аутентификации и шифрования, например в map
-		if userCreds, found := Userv3Map[SNMPv3User]; found {
+		// SNMPv3: ищем пользователя и параметры аутентификации и шифрования, map
+		// Сначала ищем по имени + IP адрес устройства
+		if userCreds, found := Userv3Map[UserKey{DeviceIP: addr, Usename: SNMPv3User}]; found {
 			//Если нашли, то будем передавать эти данные для дешифровки
 			credentials = *userCreds
 		} else {
-			fmt.Printf("Unknown user SNMPv3: %s\n", SNMPv3User)
-			return
+			// Теперь ищем с пустым IP адресом
+			if userCreds, found = Userv3Map[UserKey{DeviceIP: "", Usename: SNMPv3User}]; found {
+				//Если нашли, то будем передавать эти данные для дешифровки
+				credentials = *userCreds
+			} else {
+				fmt.Printf("Unknown user SNMPv3: %s\n", SNMPv3User)
+				return
+			}
 		}
 	} else if SNMPver == 1 {
 		credentials.SNMPversion = 2
@@ -160,7 +172,7 @@ func PrTrap(addr string, port int, data []byte, Userv3Map map[string]*PowerSNMP.
 
 }
 
-func RecPacket(ctx context.Context, conn net.PacketConn, Userv3Map map[string]*PowerSNMP.SNMPTrapParameters, GlobalChannel chan LogMsg, DebugMode bool, wg *sync.WaitGroup) {
+func RecPacket(ctx context.Context, conn net.PacketConn, Userv3Map map[UserKey]*PowerSNMP.SNMPTrapParameters, GlobalChannel chan LogMsg, DebugMode bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	buff := make([]byte, 2048)
 	var gracefullshflag atomic.Bool
@@ -228,7 +240,7 @@ func main() {
 
 	var GlobalData GlobalDataType
 	GlobalData.GlobalChannel = make(chan LogMsg, 1000)
-	GlobalData.Userv3Map = make(map[string]*PowerSNMP.SNMPTrapParameters)
+	GlobalData.Userv3Map = make(map[UserKey]*PowerSNMP.SNMPTrapParameters)
 	GlobalData.Debugmode = SettingsData.Debugmode
 
 	for _, CUser := range SettingsData.Users {
@@ -245,7 +257,7 @@ func main() {
 			continue
 		}
 
-		GlobalData.Userv3Map[CUser.Username] = &PowerSNMP.SNMPTrapParameters{Username: CUser.Username,
+		GlobalData.Userv3Map[UserKey{DeviceIP: CUser.IPaddr, Usename: CUser.Username}] = &PowerSNMP.SNMPTrapParameters{Username: CUser.Username,
 			AuthProtocol: CUser.Authproto,
 			AuthKey:      CUser.Auth,
 			PrivProtocol: CUser.Privproto,
