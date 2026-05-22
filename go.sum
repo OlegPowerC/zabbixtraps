@@ -2,3 +2,9 @@ github.com/OlegPowerC/asn1modsnmp v1.0.1 h1:WF03743d+pUt0uQbPxnjc1xYYkIWmojz18iQ
 github.com/OlegPowerC/asn1modsnmp v1.0.1/go.mod h1:uouUzRmHKGd9o7y6AM7vqFOhsNLTNGKas8tcIM12r6E=
 github.com/OlegPowerC/powersnmpv3 v1.5.2 h1:bXPICuj4ZD5sKHldLyqHnJJoKO61nLwOVH+crSzJ/+8=
 github.com/OlegPowerC/powersnmpv3 v1.5.2/go.mod h1:U/jbheUhYhhCZK44M7qtoCvtCVwaIfvi8pPmSQkZWj4=
+github.com/OlegPowerC/powersnmpv3 v1.5.3 h1:p1K3aiTgXTV6oAodhQq+fCiUWVyKCcOm1nSoIEHhxy0=
+github.com/OlegPowerC/powersnmpv3 v1.5.3/go.mod h1:U/jbheUhYhhCZK44M7qtoCvtCVwaIfvi8pPmSQkZWj4=
+github.com/OlegPowerC/powersnmpv3 v1.5.5 h1:E5iJcMlMc7VvxyjU9bk27z+ZbSrHTnpAK3FRm2f8aMY=
+github.com/OlegPowerC/powersnmpv3 v1.5.5/go.mod h1:U/jbheUhYhhCZK44M7qtoCvtCVwaIfvi8pPmSQkZWj4=
+github.com/OlegPowerC/powersnmpv3 v1.5.6 h1:ksE6ZWu6ZwsEBL2SwPu0Q6lcCClDRnUNnTgVikMp1fI=
+github.com/OlegPowerC/powersnmpv3 v1.5.6/go.mod h1:U/jbheUhYhhCZK44M7qtoCvtCVwaIfvi8pPmSQkZWj4=

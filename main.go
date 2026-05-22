@@ -25,6 +25,9 @@ const (
 	MSG_REPORT = 1
 	MSG_TRAP   = 2
 	MSG_INFORM = 3
+
+	SNMPpt_VERSION_2C = 1
+	SNMPpt_VERSION_3  = 3
 )
 
 type UserData struct {
@@ -44,7 +47,7 @@ type Settings struct {
 
 type UserKey struct {
 	DeviceIP string
-	Usename  string
+	Username string
 }
 type LogMsg struct {
 	datavalid bool
@@ -100,38 +103,51 @@ func LogWriter(ctx context.Context, logfile string, GlobalChannel chan LogMsg, w
 	}
 }
 
-func PrTrap(addr string, port int, data []byte, Userv3Map map[UserKey]*PowerSNMP.SNMPTrapParameters, GlobalChannel chan LogMsg, DebugMode bool) {
+func PrTrap(conn net.PacketConn, sourceAddr net.Addr, data []byte, Userv3Map map[UserKey]*PowerSNMP.SNMPTrapParameters, GlobalChannel chan LogMsg, SNMPlp *PowerSNMP.SNMPLocalParams, Timezone string, DebugMode bool) {
+	addr, pok := sourceAddr.(*net.UDPAddr)
+	if !pok {
+		return
+	}
 	//Приняли трап или информ, извлекаем из него незашифрованные данные
-	SNMPver, SNMPv3User, v3SecData, v3globaldata, PuErr := PowerSNMP.ParseTrapUsername(data)
+	SNMPver, SNMPv3User, v3ppacket, PuErr := PowerSNMP.ParseTrapUsername(data)
 	if PuErr != nil {
 		fmt.Println("Parse error")
+		return
 	}
 	var credentials PowerSNMP.SNMPTrapParameters
 
-	if SNMPver == 3 {
-		// SNMPv3: ищем пользователя и параметры аутентификации и шифрования, map
-		// Сначала ищем по имени + IP адрес устройства
-		if userCreds, found := Userv3Map[UserKey{DeviceIP: addr, Usename: SNMPv3User}]; found {
-			//Если нашли, то будем передавать эти данные для дешифровки
-			credentials = *userCreds
-		} else {
-			// Теперь ищем с пустым IP адресом
-			if userCreds, found = Userv3Map[UserKey{DeviceIP: "", Usename: SNMPv3User}]; found {
+	if SNMPver == SNMPpt_VERSION_3 {
+		if len(SNMPv3User) > 0 {
+			// SNMPv3: ищем пользователя и параметры аутентификации и шифрования, map
+			// Сначала ищем по имени + IP адрес устройства
+			if userCreds, found := Userv3Map[UserKey{DeviceIP: addr.IP.String(), Username: SNMPv3User}]; found {
 				//Если нашли, то будем передавать эти данные для дешифровки
 				credentials = *userCreds
 			} else {
-				fmt.Printf("Unknown user SNMPv3: %s\n", SNMPv3User)
-				return
+				// Теперь ищем с пустым IP адресом
+				if userCreds, found = Userv3Map[UserKey{DeviceIP: "", Username: SNMPv3User}]; found {
+					//Если нашли, то будем передавать эти данные для дешифровки
+					credentials = *userCreds
+				} else {
+					fmt.Printf("Неизвестный пользователь SNMPv3: %s\n", SNMPv3User)
+				}
 			}
 		}
-	} else if SNMPver == 1 {
+
+	} else if SNMPver == SNMPpt_VERSION_2C {
 		credentials.SNMPversion = 2
 	} else {
 		fmt.Printf("Unsupported SNMP version: %d\n", SNMPver)
 		return
 	}
 
-	_, pmsgtype, datadec, err := PowerSNMP.ParseTrapWithCredentials(addr, port, data, credentials, 0)
+	if len(SNMPv3User) == 0 {
+		if len(v3ppacket.GlobalData.MsgFlag) > 0 && v3ppacket.GlobalData.MsgFlag[0] == 0x04 {
+			credentials.SNMPversion = 3
+		}
+	}
+
+	_, pmsgtype, datadec, err := PowerSNMP.ParseTrapWithCredentials(conn, sourceAddr, SNMPver, data, &v3ppacket, credentials, SNMPlp, true, 0)
 
 	if err != nil {
 		fmt.Printf("Error parsing message: %v\n", err)
@@ -149,30 +165,35 @@ func PrTrap(addr string, port int, data []byte, Userv3Map map[UserKey]*PowerSNMP
 	}
 	VarBindsStr := STBuilder.String()
 
-	Timelocation, LtimelocErr := time.LoadLocation("Europe/Moscow")
+	Ctmizone := "Asia/Dubai"
+	if Timezone != "" {
+		Ctmizone = Timezone
+	}
+	Timelocation, LtimelocErr := time.LoadLocation(Ctmizone)
 	if LtimelocErr != nil {
 		fmt.Println(LtimelocErr)
 		Timelocation = time.UTC
 	}
 
-	//Готовим текст для записи в файл
-	ZabbixDateString := time.Now().In(Timelocation).Format(DateFormat)
-	ZabbixLogString := fmt.Sprintf("%s ZBXTRAP %s VARBINDS:\n%s", ZabbixDateString, addr, VarBindsStr)
+	if len(datadec.VarBinds) > 0 {
+		//Готовим текст для записи в файл
+		ZabbixDateString := time.Now().In(Timelocation).Format(DateFormat)
+		ZabbixLogString := fmt.Sprintf("%s ZBXTRAP %s VARBINDS:\n%s", ZabbixDateString, addr, VarBindsStr)
 
-	if DebugMode {
-		DebugPrint(addr, SNMPver, SNMPv3User, pmsgtype, credentials, ZabbixLogString, v3SecData, v3globaldata, datadec)
+		if DebugMode {
+			DebugPrint(addr.String(), SNMPver, SNMPv3User, pmsgtype, credentials, ZabbixLogString, v3ppacket.SecuritySettings, v3ppacket.GlobalData, datadec)
+		}
+
+		//Отправим в канал или отбросим если канал полон
+		select {
+		case GlobalChannel <- LogMsg{datavalid: true, logrow: ZabbixLogString}:
+		default:
+			fmt.Println("Channel is full")
+		}
 	}
-
-	//Отправим в канал или отбросим если канал полон
-	select {
-	case GlobalChannel <- LogMsg{datavalid: true, logrow: ZabbixLogString}:
-	default:
-		fmt.Println("Channel is full")
-	}
-
 }
 
-func RecPacket(ctx context.Context, conn net.PacketConn, Userv3Map map[UserKey]*PowerSNMP.SNMPTrapParameters, GlobalChannel chan LogMsg, DebugMode bool, wg *sync.WaitGroup) {
+func RecPacket(ctx context.Context, conn net.PacketConn, Userv3Map map[UserKey]*PowerSNMP.SNMPTrapParameters, GlobalChannel chan LogMsg, TmeZone string, DebugMode bool, LocPr *PowerSNMP.SNMPLocalParams, wg *sync.WaitGroup) {
 	defer wg.Done()
 	buff := make([]byte, 2048)
 	var gracefullshflag atomic.Bool
@@ -195,15 +216,17 @@ func RecPacket(ctx context.Context, conn net.PacketConn, Userv3Map map[UserKey]*
 		}
 		data := make([]byte, n)
 		copy(data, buff[:n])
-		udpAddr := addr.(*net.UDPAddr)
-		srcIP := udpAddr.IP.String()
-		srcPort := udpAddr.Port
-		go PrTrap(srcIP, srcPort, data, Userv3Map, GlobalChannel, DebugMode)
+		go PrTrap(conn, addr, data, Userv3Map, GlobalChannel, LocPr, TmeZone, DebugMode)
 	}
 }
 
 func main() {
 	var SettingsData Settings
+	var LocParam PowerSNMP.SNMPLocalParams
+	LocParam.RBoots.Store(2)
+	LocParam.RTime.Store(1270)
+	LocParam.LocalEngineID = []byte{40, 20, 10, 1, 1, 2, 2, 1, 0, 0, 1, 2}
+
 	ex, err := os.Executable()
 	if err != nil {
 		fmt.Println(err)
@@ -257,7 +280,7 @@ func main() {
 			continue
 		}
 
-		GlobalData.Userv3Map[UserKey{DeviceIP: CUser.IPaddr, Usename: CUser.Username}] = &PowerSNMP.SNMPTrapParameters{Username: CUser.Username,
+		GlobalData.Userv3Map[UserKey{DeviceIP: CUser.IPaddr, Username: CUser.Username}] = &PowerSNMP.SNMPTrapParameters{Username: CUser.Username,
 			AuthProtocol: CUser.Authproto,
 			AuthKey:      CUser.Auth,
 			PrivProtocol: CUser.Privproto,
@@ -283,7 +306,7 @@ func main() {
 	go LogWriter(ctx, SettingsData.Logfile, GlobalData.GlobalChannel, &wg)
 
 	wg.Add(1)
-	go RecPacket(ctx, conn, GlobalData.Userv3Map, GlobalData.GlobalChannel, GlobalData.Debugmode, &wg)
+	go RecPacket(ctx, conn, GlobalData.Userv3Map, GlobalData.GlobalChannel, SettingsData.Timezone, GlobalData.Debugmode, &LocParam, &wg)
 
 	//Ждем сигнал и завершаем все потоки
 	ctxsig, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
