@@ -178,7 +178,7 @@ func PrTrap(conn net.PacketConn, sourceAddr net.Addr, data []byte, Userv3Map map
 	if len(datadec.VarBinds) > 0 {
 		//Готовим текст для записи в файл
 		ZabbixDateString := time.Now().In(Timelocation).Format(DateFormat)
-		ZabbixLogString := fmt.Sprintf("%s ZBXTRAP %s VARBINDS:\n%s", ZabbixDateString, addr, VarBindsStr)
+		ZabbixLogString := fmt.Sprintf("%s ZBXTRAP %s VARBINDS:\n%s", ZabbixDateString, addr.IP.String(), VarBindsStr)
 
 		if DebugMode {
 			DebugPrint(addr.String(), SNMPver, SNMPv3User, pmsgtype, credentials, ZabbixLogString, v3ppacket.SecuritySettings, v3ppacket.GlobalData, datadec)
