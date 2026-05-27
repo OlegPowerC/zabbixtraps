@@ -1,12 +1,12 @@
 [Unit]
-Description=zbxtst
+Description=zabbixtraps
 After=network.target
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/zbxtst
-ExecStart=/opt/zbxtst/zbxtst
+WorkingDirectory=/opt/zabbixtraps
+ExecStart=/opt/zabbixtraps/zabbixtraps
 Restart=on-failure
 # Other Restart options: or always, on-abort, etc
 
