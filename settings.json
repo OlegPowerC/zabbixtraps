@@ -1,5 +1,5 @@
 {
-  "logfile": "snmptrap.log",
+  "logfile": "/var/log/snmptrap/snmptrap.log",
   "timezone": "Europe/Moscow",
   "debugmode": true,
   "users": [
