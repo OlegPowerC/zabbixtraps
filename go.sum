@@ -8,3 +8,7 @@ github.com/OlegPowerC/powersnmpv3 v1.5.5 h1:E5iJcMlMc7VvxyjU9bk27z+ZbSrHTnpAK3FR
 github.com/OlegPowerC/powersnmpv3 v1.5.5/go.mod h1:U/jbheUhYhhCZK44M7qtoCvtCVwaIfvi8pPmSQkZWj4=
 github.com/OlegPowerC/powersnmpv3 v1.5.6 h1:ksE6ZWu6ZwsEBL2SwPu0Q6lcCClDRnUNnTgVikMp1fI=
 github.com/OlegPowerC/powersnmpv3 v1.5.6/go.mod h1:U/jbheUhYhhCZK44M7qtoCvtCVwaIfvi8pPmSQkZWj4=
+github.com/OlegPowerC/powersnmpv3 v1.5.7 h1:YYoy4LMsbk3sfHmoGmMHwqQXdEx5zd3+kR9snoJrYJw=
+github.com/OlegPowerC/powersnmpv3 v1.5.7/go.mod h1:U/jbheUhYhhCZK44M7qtoCvtCVwaIfvi8pPmSQkZWj4=
+github.com/OlegPowerC/powersnmpv3 v1.5.8 h1:+MYTg6HvMfWTOgM6agv+7YAmVnvdd5HA6lM+dciPDDc=
+github.com/OlegPowerC/powersnmpv3 v1.5.8/go.mod h1:U/jbheUhYhhCZK44M7qtoCvtCVwaIfvi8pPmSQkZWj4=

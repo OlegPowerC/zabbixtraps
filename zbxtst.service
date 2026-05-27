@@ -1,0 +1,14 @@
+[Unit]
+Description=zbxtst
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/zbxtst
+ExecStart=/opt/zbxtst/zbxtst
+Restart=on-failure
+# Other Restart options: or always, on-abort, etc
+
+[Install]
+WantedBy=multi-user.target

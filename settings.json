@@ -28,7 +28,7 @@
     {
       "username": "snmpuser192",
       "authproto": "sha",
-      "privproto": "aes192a",
+      "privproto": "aes192",
       "auth": "auth12345",
       "priv": "priv19212345"
     },
