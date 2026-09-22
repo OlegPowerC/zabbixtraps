@@ -1,47 +1,44 @@
-### Прототип риемника SNMP трапов для работы с Zabbix
+### SNMP Trap/Inform receiver prototype for Zabbix
 
-### Описание
-Прием TRAP/INFORM SNMP сообщений от оборудования.  
-Функциональность:  
+### Description
+Receives TRAP/INFORM SNMP messages form network equipment.  
+Functionality:  
 
-- Прием SNMP Trap/Inform версии 2c и 3, при этом приемник единый.
-- Для приема SNMP Trap/Inform версии 3, требуется знать параметры аутентификации и шифрования. Пояснение будет ниже.
-- Запись данных в файл, который читает Zabbix
+- Support receiving SNMP Trap/Inform messages from network equipment (2c and 3 simultaneously).
+- To receive SNMP Trap/Inform messages using SNMPv3, the authentication and encryption parameters must be known. Further details are provided below.
+- Writes received data to a file that is read by Zabbix.
 
-### Прием SNMP TRAP/INFORM сообщений, версии 3
-Поскольку сообщения версии 3, как правило, зашифрованы, до перед записью в файл, их требуется расшифровать.  
-Для этого необходимо знать:  
+### Receiving SNMP TRAP/INFORM messages, version 3
+Since SNMPv3 messages are typically encrypted, messages must be decrypted before being written to the file.  
+The following parameters are required:  
 - Username
-- Протокол аутентификации (если он используется)
-- Протокол шифрования (если он используется)
-- Пароль аутентификации
-- Пароль шифрования
+- Authentication protocol (if used)
+- Privacy protocol (if used)
+- Authentication password
+- Privacy password
 - Engine ID
 
-Username и Engine ID извлекается из сообщения без его дешифровки, предварительным парсером.
-Далее, остальные необходимые параметры извлекаются из хранилища, куда они помещаются перед запуском.  
-Затем производится полный парсеинг с проверкой аутентификации и дешифровкой.
-В случае успеха, данные записываются в файл, откуда они в последствии попадут в Zabbix.  
-Проверено на IPv4 и IPv6 трапах.  
+The Username and Engine ID are extracted from message without decryption (using special preliminary parser).
+The remaining required parameters are retrieved from a storage where they are configured before the receiver is started.
+The message is then fully parsed, with authentication verification and decryption performed.
+If successful, the data is written to a file, from which it is subsequently retrieved by Zabbix.
+Tested with both IPv4 and IPv6 traps.
 
-**Замечание о дешифровании и аутентификации**  
-Уровни безопасности бывают:  
-- Без аутентификации и шифрования
-- С аутентификацией, но без шифрования
-- С аутентификацией и шифрованием
+**Note on Authentication and Encryption**  
+SNMPv3 protocol, supports the following security levels:  
+- No authentication, no encryption
+- Authentication, no encryption
+- Authentication and encryption
 
-Шифрование бвозможно только с аутентификацией
-А вот аутентификация возможно без шифрования.
-И если указаны параметры для аутентификации и шифрования, то сообщение только с аутентификацией так же примется.  
+Encryption can only be used together with authentication, while authentication can be used without encryption.
 
-### Параметры для запуска
-Все параметры указываеются в файле **settings.json**.  
-Файл **logfile** должен существовать, и в него должна быть разрешена запись данному сервису, и как минимум чтение Zabbix'у.  
-Можно запускать для тестов на Windows, но придется создать файл и указать правильный путь, либо без пути, если он в одной папке с исполняемым файлом.  
-Я тестирую так:
-"logfile": "snmptrap.log",
+### Settings
+All parameters are specified in the configuration file **settings.json**.  
+The **logfile** must exsist, The receiver can also be run on Windows for testing.  
+In this case, the file must be created manually and the correct path specified.  
+Alternatively, the file name can be specified without a path if the file is located in the same directory as the executable.
 
-Пример файла:
+Configuration file example:
 ```json
 {
   "logfile": "/var/log/snmptrap/snmptrap.log",
@@ -81,17 +78,17 @@ Username и Engine ID извлекается из сообщения без ег
 }
 ```
 
-### Случай когда одно имя пользователя но разные протоколы или пароли
+### A case where the same username is used with different protocols or passwords.
 
-Бывают ситуации, когда есть набор оборудования поддерживающего желаемые параметры, но есть исключения.  
-Например, у вас на всем оборудовании настроен SNMP v3 так:  
-Имя пользователя - snmpusermg  
-Протокол аутентификации - sha  
-Протокол шифрования - aes  
+There may be situations where a group of network devices supports the desired SNMPv3 parameters, but there are exceptions.  
+For example, suppose SNMPv3 is configured on all your devices with the following parameters:  
+Username - snmpusermg  
+Authentication protocol - sha  
+Privacy protocol  - aes  
 
-Но есть старый коммутатор, который поддерживает только md5/des  
-Тогда можно либо создать другого пользователя, либо указать в файле с параметрами еще одну секцию, но указать там IP адрес:  
+However, there is an older switch that supports only MD5/DES.
 
+In this case, you can either create a separate user or add another section to the configuration file and specify the IP address of the device:
 ```
     {
       "username": "snmpusermg",
@@ -102,15 +99,15 @@ Username и Engine ID извлекается из сообщения без ег
       "ipaddr": "192.168.0.106"
     }
 ```
-Тут для примера, IP адрес такого коммутатора: 192.168.0.106  
+"192.168.0.106" is the IP address of the test switch  
 
-Логика работы такая:  
-Сначала ведется поиск по связке username + ipaddr, если такие параметры не найдены то только по username.
+The lookup logic works as follows:  
+The receiver first searches for a matching username + IP address combination. If no matching entry is found, it searches by username only.
 ---
-### Тестирование
-Проверить можно с помощью net-snmp утилит **snmpinform** и **snmptrap**.  
+### Testing
+You can test the receiver, using **snmpinform** and **snmptrap**.  
 
-### Пример
+### Example
 
 ```bash
 snmpinform -v 3 -u testuser1 -a sha -A auth12345 -l authPriv -x aes -X priv12345 -e 0x80001f8880f7996d5a41965d69 192.168.0.4 42 coldStart.2
@@ -128,7 +125,7 @@ snmpinform -v 3 -u snmpuser192 -a sha -A auth12345 -l authPriv -x aes-192 -X pri
 snmptrap -v 3 -u snmpuser256256 -a sha-256 -A auth25612345 -l authPriv -x aes-256 -X priv25612345 -e 0x80001f8880f7996d5a41965d69 192.168.0.4 42 coldStart.0
 ```
 
-**Пример вывода**
+**Output example**
 
 ``` 
     ----------------------------------------------------------
@@ -149,7 +146,7 @@ snmptrap -v 3 -u snmpuser256256 -a sha-256 -A auth25612345 -l authPriv -x aes-25
     ----------------------------------------------------------
 ```
 
-**Пример записи в лог**
+**Log example**
 
 ``` 
 05-20-26 18:04:05 ZBXTRAP 192.168.0.106 VARBINDS:
@@ -157,9 +154,7 @@ snmptrap -v 3 -u snmpuser256256 -a sha-256 -A auth25612345 -l authPriv -x aes-25
 1.3.6.1.6.3.1.1.4.1.0 = 1.3.6.1.6.3.1.1.5.1.0 : Universal OID
 ```
 
-### Скоро добавлю пример конфигурации Zabbix
-
-Пока пример трапа и конфигурации Item:  
+### simple Zabbix configuration example
 
 ![TrapItem.jpg](.github/images/TrapItem.jpg)
 ![zabbixtraps1.jpg](.github/images/zabbixtraps1.jpg)
